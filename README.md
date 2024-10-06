@@ -1,4 +1,4 @@
-# Instrumental Variables for Experiments with Imperfect Compliance
+# Instrumental variables for experiments with imperfect compliance
 ### Tutorial on IV using the AER and fixest packages
 
 🇺🇸 This R script simulates an experiment with imperfect compliance, where not all individuals assigned to receive a treatment actually use it. I analyze the impact using Instrumental Variables (IV) regression with the `AER` and `fixest` packages in R. The goal is to demonstrate how to apply IV methods to estimate causal effects in the presence of non-compliance using robust techniques.
