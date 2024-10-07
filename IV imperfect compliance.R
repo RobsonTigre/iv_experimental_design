@@ -111,7 +111,6 @@ summary(ivreg(future_purchases ~ coupon_use + income + age | treatment + income 
 # PT-BR: Realizando um teste placebo para testar se o instrumento afeta compras passadas (o que logicamente não deveria)...
 # ... Isso indica que o instrumento não tem um efeito direto no desfecho fora de seu efeito através da variável endógena.
 summary(ivreg(past_purchases ~ coupon_use + income + age | treatment + income + age, data = data))
-summary(feols(past_purchases ~  income + age | coupon_use ~ treatment, data = data))
 
 
 # Results: ITT and LATE ---------------------------------------------------
@@ -183,4 +182,3 @@ p2 <- ggplot(data_combined, aes(x = future_purchases, fill = group)) +
   theme(legend.position = "bottom") # Position legend below the plot
 
 print(p2)
-
