@@ -1,7 +1,7 @@
 # Project: IV for experiments with imperfect compliance
 # Author: Robson Tigre
 # Created: Oct 05 2024 
-# Last update: Oct 06 2024
+# Last update: Oct 07 2024
 
 
 # Setup -------------------------------------------------------------------
@@ -50,7 +50,7 @@ age <- rnorm(n, mean = 35, sd = 10)
 # PT-BR: Agora, torne o compliance (i.e., usar o cupom ao recebê-lo) dependente das covariáveis... 
 # ... aqui, renda mais alta e ser mais jovem aumentam a probabilidade de usar o cupom
 prob_coupon_use <- ifelse(treatment == 1,
-                          plogis(-2 + 0.00002 * income - 0.02 * age),  # Logistic function
+                          plogis(-2 + 0.00008 * income - 0.08 * age),  # Logistic function
                           0)  # No coupon use in control group
 
 
@@ -88,22 +88,22 @@ data <- data %>%
 
 data %>% 
   filter(treatment == 1) %>% 
-  janitor::tabyl(coupon_use) # compliance rate = 16.2% -> 1,595 clients
+  janitor::tabyl(coupon_use) # see compliance rate
 
 
 # Check IV assumptions ----------------------------------------------------
 
 # EN-US: Assumption 1 - Relevance: Coupon assignment must significantly affect coupon usage
 # PT-BR: Pressuposto 1 - Relevância: A atribuição de cupons deve afetar significativamente o uso dos cupons
-first_stage_model <- lm(coupon_use ~ treatment + income + age, data=data)
-summary(first_stage_model)
+summary(lm(coupon_use ~ treatment + income + age, data = data))
 
 # EN-US: Assumption 2 - Independence/exclusion restriction: indirect test -> regressions with or without covariates should yield similar results ...
 # .. to support the idea that our instrument (coupon assignment) affects the outcome (future purchases) only through the endogenous variable (coupon use).
 # PT-BR: Pressuposto 2 - Independência/Restrição de Exclusão: teste indireto -> regressões com ou sem covariáveis devem produzir resultados semelhantes ...
 # ... para sustentar a ideia de que nosso instrumento (atribuição de cupom) afeta o outcome (compras futuras) apenas através da variável endógena (uso do cupom),
-summary(ivreg(future_purchases ~ coupon_use | treatment, data=data)) # without covariates
-summary(ivreg(future_purchases ~ coupon_use + income + age | treatment + income + age, data=data)) # with covariates
+summary(lm(coupon_use ~ treatment, data = data)) # 1st stage without covariates, just to be sure
+summary(ivreg(future_purchases ~ coupon_use | treatment, data = data)) # without covariates
+summary(ivreg(future_purchases ~ coupon_use + income + age | treatment + income + age, data = data)) # with covariates
 
 
 #  EN-US: Conducting a placebo test to test whether the instrument affects past purchases (which it  logically shouldn't)...
@@ -123,8 +123,7 @@ summary(lm(future_purchases ~ treatment + income + age, data = data))
 # EN-US: Estimate the Local Average Treatment Effect (LATE) using IV
 # PT-BR: Estimar o Efeito Médio Local de Tratamento (LATE) usando VI
 summary(ivreg(future_purchases ~ coupon_use + income + age | treatment + income + age, data = data)) # Using ivreg from the AER package
-summary(feols(future_purchases ~  income + age | 0 | coupon_use ~ treatment, data=data)) # Using feols from the fixest package
-
+summary(feols(future_purchases ~  income + age | coupon_use ~ treatment, data = data)) # Using feols from the fixest package
 
 
 # Visualization -----------------------------------------------------------
@@ -132,6 +131,9 @@ summary(feols(future_purchases ~  income + age | 0 | coupon_use ~ treatment, dat
 mean_control <- mean(data$future_purchases[data$treatment == 0]) # Mean of future purchases for the control group
 mean_non_compliers <- mean(data$future_purchases[data$treatment == 1 & data$coupon_use == 0]) # Mean of future purchases for the non-compliers
 mean_compliers <- mean(data$future_purchases[data$treatment == 1 & data$coupon_use == 1]) # # Mean of future purchases for the compliers
+
+mean_compliers - mean_non_compliers # difference in means between compliers and non-compliers
+mean_compliers - mean_control # difference in means between compliers and control
 
 # EN-US: Plot the distributions of control, non-compliers, and compliers
 # PT-BR: Plotar as distribuições dos grupos Controle, Não-compliers e compliers
@@ -157,7 +159,7 @@ print(p1)
 # EN-US: Create a combined distribution for the treated group (compliers + non-compliers)
 # PT-BR: Criar uma distribuição combinada para o grupo tratado (compliers + não-compliers)
 data_combined <- data %>%
-  mutate(group = ifelse(treatment == 1, "Treated (compliers [16%] + non-compliers [84%])", "Control"))
+  mutate(group = ifelse(treatment == 1, "Treated (compliers [36%] + non-compliers [64%])", "Control"))
 
 # Calculate the mean for the treated group
 mean_treated <-  mean(data$future_purchases[data$treatment == 1]) # Mean of future purchases for the the treated
@@ -167,17 +169,18 @@ mean_treated <-  mean(data$future_purchases[data$treatment == 1]) # Mean of futu
 p2 <- ggplot(data_combined, aes(x = future_purchases, fill = group)) +
   geom_density(alpha = 0.5) +
   geom_vline(aes(xintercept = mean_control, color = "Control"), linetype = "dashed", size = 1) +
-  geom_vline(aes(xintercept = mean_treated, color = "Treated (compliers [16%] + non-compliers [84%])"), linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = mean_treated, color = "Treated (compliers [36%] + non-compliers [64%])"), linetype = "dashed", size = 1) +
   geom_text(aes(x = mean_control - 5, label = round(mean_control, 2), y = 0.016), color = "black", angle = 0, vjust = -1, size = 6) +
   geom_text(aes(x = mean_treated + 5, label = round(mean_treated, 2), y = 0.016), color = "black", angle = 0, vjust = -1, size = 6) +
   labs(title = "Combined distribution of treated (compliers + non-compliers) vs control",
        x = "Outcome (future_purchases)",
        y = "Density") +
   scale_fill_manual(values = c("Control" = "red", 
-                               "Treated (compliers [16%] + non-compliers [84%])" = "#23aeFF")) +
+                               "Treated (compliers [36%] + non-compliers [64%])" = "#23aeFF")) +
   scale_color_manual(values = c("Control" = "red", 
-                                "Treated (compliers [16%] + non-compliers [84%])" = "#23aeFF")) +
+                                "Treated (compliers [36%] + non-compliers [64%])" = "#23aeFF")) +
   theme_minimal(base_size = 18) +  # Increase all text sizes
   theme(legend.position = "bottom") # Position legend below the plot
 
 print(p2)
+
